@@ -30,3 +30,7 @@ DartConfiguration.tcl
 pdf2htmlEX/test/test.py
 pdf2htmlEX/test/geckodriver.log
 *.swp
+
+
+# Jetbrains IDE's
+.idea/
