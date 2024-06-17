@@ -34,3 +34,6 @@ pdf2htmlEX/test/geckodriver.log
 
 # Jetbrains IDE's
 .idea/
+
+# Pyenv
+.python-version
