@@ -1,0 +1,24 @@
+# Ignore everything
+*
+
+# Allow files and directories
+!/archive
+!/buildScripts
+!/patches
+!/pdf2htmlEX
+!/LICENSE
+!/LICENSE_GPLv3
+!/README.md
+!/ChangeLog
+
+# Ignore unnecessary files inside allowed directories
+# This should go after the allowed directories
+**/*~
+**/*.log
+**/.DS_Store
+**/Thumbs.db
+**/*.pyc
+**/*.pyo
+**/.hypothesis
+**/__pycache__
+**/.python-version

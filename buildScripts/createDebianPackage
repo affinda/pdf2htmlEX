@@ -13,10 +13,9 @@ echo ""
 
 set -ev
 
-if ! [[ -v DPKG_NAME ]]; then
+if [ -z "${DPKG_NAME}" ]; then
   export DPKG_NAME="pdf2htmlEX-$PDF2HTMLEX_NAME.deb"
 fi
-
 echo "export DPKG_NAME=\"$DPKG_NAME\"" >> buildScripts/reSourceVersionEnvs
 
 # Adapted from: https://blog.serverdensity.com/how-to-create-a-debian-deb-package/
@@ -45,15 +44,12 @@ make install                                  \
 
 cd ..
 
-# Create a 'useful' changelog
-#
-git log --format="%cd %h %d %n    %s%n" --date=short > $DOCDIR/gitLog
-
-# Ensure the license and readme details are embedded in the debian archive 
+# Ensure the license, changelog and readme details are embedded in the debian archive
 #
 cp LICENSE       $DOCDIR
 cp LICENSE_GPLv3 $DOCDIR
 cp README.md     $DOCDIR
+cp ChangeLog     $DOCDIR
 
 ########################################
 # setup the DEBIAN package files
@@ -74,8 +70,8 @@ versionValue=$PDF2HTMLEX_VERSION.$PDF2HTMLEX_BRANCH.$BUILD_DIST.$BUILD_DATE
 architectureValue=$(dpkg-architecture -q DEB_BUILD_ARCH_CPU)
 
 
-if ! [[ -v MAINTAINER_VALUE ]]; then
- MAINTAINER_VALUE="$(git config --get user.name) <$(git config --get user.email)>"
+if [ -z "${MAINTAINER_VALUE}" ]; then
+  MAINTAINER_VALUE="$(git config --get user.name) <$(git config --get user.email)>"
 fi
 
 # Now create the control file

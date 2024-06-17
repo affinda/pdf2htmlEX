@@ -63,9 +63,9 @@ COPY ./buildScripts/buildFontforge ./buildScripts/buildFontforge
 RUN ./buildScripts/buildFontforge
 
 FROM builder-base as builder
-COPY --from=builder-poppler /opt/pdf2htmlEX/poppler /opt/pdf2htmlEX/poppler
-COPY --from=builder-poppler /opt/pdf2htmlEX/poppler-data /opt/pdf2htmlEX/poppler-data
-COPY --from=builder-fontforge /opt/pdf2htmlEX/fontforge /opt/pdf2htmlEX/fontforge
+COPY --link --from=builder-poppler /opt/pdf2htmlEX/poppler /opt/pdf2htmlEX/poppler
+COPY --link --from=builder-poppler /opt/pdf2htmlEX/poppler-data /opt/pdf2htmlEX/poppler-data
+COPY --link --from=builder-fontforge /opt/pdf2htmlEX/fontforge /opt/pdf2htmlEX/fontforge
 
 WORKDIR /opt/pdf2htmlEX
 COPY ./ ./
@@ -83,8 +83,9 @@ RUN ./buildScripts/createDebianPackage
 FROM ubuntu:22.04 as runtime
 ARG DPKG_NAME
 ENV DPKG_NAME=$DPKG_NAME
-COPY --from=builder ./$DPKG_NAME /root
+COPY --from=builder /opt/pdf2htmlEX/imageBuild/$DPKG_NAME /root/$DPKG_NAME
 
+#
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
   apt update && \
@@ -92,9 +93,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   apt -y --no-install-recommends install \
     /root/$DPKG_NAME
 
-# make the /pdf directory the default working directory for any run of
-# pdf2htmlEX
-#
+## make the /pdf directory the default working directory for any run of pdf2htmlEX
 WORKDIR /pdf
 
-ENTRYPOINT ["$PDF2HTMLEX_PREFIX/bin/pdf2htmlEX"]
+ENTRYPOINT ["/usr/bin/pdf2htmlEX"]
