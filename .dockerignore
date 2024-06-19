@@ -2,7 +2,6 @@
 *
 
 # Allow files and directories
-!/archive
 !/buildScripts
 !/patches
 !/pdf2htmlEX
