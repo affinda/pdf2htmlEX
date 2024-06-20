@@ -1,9 +1,10 @@
-
 services:
   api:
+    image: affinda/pdf2htmlex-api:latest
     build:
       context: .
       dockerfile: Dockerfile
+      target: api
     ports:
       - 8080:8080
     volumes:
