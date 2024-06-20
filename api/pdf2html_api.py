@@ -8,17 +8,18 @@ from pathlib import Path
 from typing import Optional
 
 import sentry_sdk
-from fastapi import FastAPI, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile
 from pybase64 import b64encode
 from pydantic import BaseModel
 from sentry_sdk import set_tag
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from pybase64 import b64encode
 
-from api.cmd import run_cmd
+from utils.cmd import run_cmd
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
 
-SENTRY_DSN = os.environ.get("SENTRY_DSN_TYPE", default="")
+SENTRY_DSN = os.environ.get("SENTRY_DSN", default="")
 SENTRY_ENABLED = bool(int(os.environ.get("SENTRY_ENABLED", default="0")))
 SENTRY_ENVIRONMENT = os.environ.get("SENTRY_ENVIRONMENT", default="pdf2html")
 SENTRY_RELEASE = os.environ.get("SENTRY_RELEASE", default="")
@@ -46,8 +47,6 @@ app = FastAPI()
 
 class ConversionFailed(Exception):
     pass
-
-
 
 
 @app.get("/")
@@ -83,11 +82,13 @@ async def convert_pdf(request: Request, file: UploadFile) -> FileResponse:
             ]
             run_cmd(cmd=pdf2htmlEX)
             assert output_file_path.exists()
-            return FileResponse(path=output_file_path, filename=output_file_path.name)
-
+            return HTMLResponse(content=output_file_path.read_text(), status_code=200)
+            # return FileResponse(path=output_file_path, filename=output_file_path.name)
+            # with open(output_file_path, "rb") as f:
+            # return FileResponse(f, filename=output_file_path.name)
+            # return {"html_b64": b64encode(f.read()).decode()}
 
     except Exception as exc:
         raise HTTPException(
             status_code=500, detail="PDF2HTML failed to convert, this is extremely rare and should be investigated!"
         ) from exc
-

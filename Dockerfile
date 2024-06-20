@@ -124,13 +124,11 @@ COPY --link --from=api-requirements ["/opt/pdf2htmlEX/requirements.txt", "/opt/p
 RUN --mount=type=cache,target=/root/.cache \
     uv pip install -v -r requirements.txt --link-mode copy
 
-
-COPY ["./api/pdf2html_api.py", "./api/init.sh", "./"]
+USER affinda
+COPY --link "./api" "/opt/pdf2html/api"
 
 ARG SENTRY_RELEASE
 ENV SENTRY_RELEASE=$SENTRY_RELEASE
-CMD ["/opt/pdf2html/init.sh"]
 
 # Use the affinda non root user
-USER affinda
-CMD ["/opt/pdf2html/init.sh"]
+CMD ["/opt/pdf2html/api/init.sh"]

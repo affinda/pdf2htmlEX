@@ -37,3 +37,6 @@ pdf2htmlEX/test/geckodriver.log
 
 # Pyenv
 .python-version
+
+# Private files
+.env

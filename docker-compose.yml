@@ -1,0 +1,15 @@
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+    volumes:
+      - ./api:/opt/pdf2html/api
+    environment:
+      DEV_MODE: "1"
+      PDF2HTML_PORT: "8080"
+      SENTRY_ENABLED: "1"
+      SENTRY_DSN: "${SENTRY_DSN}"

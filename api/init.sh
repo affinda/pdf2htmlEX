@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail # Exit on any non-zero exit code, and error on use of undefined var
-cd /opt/pdf2html
+cd /opt/pdf2html/api
 [[ -v PDF2HTML_PORT ]] || export PDF2HTML_PORT=8000
 [[ -v TEST_MODE ]] || export TEST_MODE=0
+[[ -v DEV_MODE ]] || export DEV_MODE=0
 [[ -v NUM_WORKERS ]] || export NUM_WORKERS=1
 [[ -v SENTRY_RELEASE ]] || export SENTRY_RELEASE=""
 [[ -v SENTRY_DSN ]] || export SENTRY_DSN=""
@@ -13,7 +14,10 @@ warning_message() {
   echo -e "\033[0;33m  $1  \t\033[0m"
 }
 
-if [[ "$TEST_MODE" == "1" ]]; then
+if [[ "$DEV_MODE" == "1" ]]; then
+  echo "Running in development mode."
+  exec uvicorn pdf2html_api:app --port $PDF2HTML_PORT --reload --host 0.0.0.0
+elif [[ "$TEST_MODE" == "1" ]]; then
   echo "$(coverage --version)"
   exec coverage run -m uvicorn pdf2html_api:app --port $PDF2HTML_PORT --host 0.0.0.0 --workers 1
 elif [[ "$NUM_WORKERS" -gt "1" ]]; then
