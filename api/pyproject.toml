@@ -1,0 +1,103 @@
+[tool.poetry]
+name = "pdf2htmlex-api"
+version = "0.1.0"
+description = "FastAPI wrapper for pdf2htmlEX"
+authors = ["Chris Culhane <chris.culhane@affinda.com>"]
+license = "GPLv3"
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+fastapi = "^0.111.0"
+gunicorn = "^22.0.0"
+uvicorn = { extras = ["standard"], version = "^0.30.1" }
+sentry-sdk = { extras = ["fastapi"], version = "^2.5.1" }
+python-multipart = "^0.0.9"
+pybase64 = "^1.3.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.2"
+mypy = "^1.10.0"
+ruff = "^0.4.9"
+
+[tool.mypy]
+python_version = "3.10"
+check_untyped_defs = true
+ignore_missing_imports = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unreachable = true
+show_error_codes = true
+strict_equality = true
+strict_optional = true
+disallow_any_unimported = true
+disallow_any_expr = false
+disallow_any_generics = false
+disallow_subclassing_any = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+
+files = ["./"]
+
+[tool.ruff]
+# Note that ruff run in subdirs will traverse up the tree to find a pyproject file with a tool.ruff section,
+# So we can configure mono-repo wide configs here :)
+line-length = 120
+target-version = "py310"
+extend-include = ["*.ipynb", "*.pyi"]
+show-fixes = true
+
+[tool.ruff.lint]
+extend-select = [
+    "B", # Enable flake8-bugbear
+    "I", # Enable isort
+    "T20", # Enabled flake8-print
+           # Rationale: log messages in production code should go through the logging subsystem so that we can do infra-level magic.
+           #   Log messages in CLI tools should go through click.
+           #   This gives us a clean distinction between temporary debugging statements (use print; don't commit)
+           #   and actual log messages (use logging/click; do commit)
+           # Exceptions: notebooks, because they don't go into production
+    "TCH", # Enable flake8-type-checking
+           # Rationale: mypy false-negatives imports which are required at runtime, but are provided in a TYPE_CHECKING block
+    "TID", # Enable flake8-tidy-imports
+           # Rationale: allows us to ban certain APIs; absolute imports are easier to reason about than relative imports
+    "NPY", # Enable numpy specific rules
+    "RUF009", # function-call-in-dataclass-default-argument
+    "PTH", # Enable flake8-use-pathlib
+           # Rationale: using pathlib makes it more likely that our code will port cleanly to S3Path.
+]
+ignore = [
+    "B905", # Dont force strict= in zip() yet, not everything uses py310
+    "PTH123", # open() is fine for now
+    "PTH118", # path.join() is fine, / is not always the right choice
+    "TCH001", # Can break msgspec, fastAPI to move things into type checking block even if they are only type hints
+    "TCH002", # as above
+    "TCH003", # as above
+]
+unfixable = [
+    "B007", # Disable autofix for unused loop variable as it's ugly - force users to fix it themselves
+]
+
+[tool.ruff.lint.isort]
+required-imports = [
+    "from __future__ import annotations as _annotations", # So we don't have to guess if we need it or not
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/__init__.py" = ["F401"]
+"**/tests/**/*.py" = ["TID252"] # Allow relative imports in tests
+
+
+[tool.ruff.lint.flake8-bugbear]
+# https://github.com/tiangolo/fastapi/issues/1522#issuecomment-1435803420
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Form"]
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = [ "pydantic.BaseModel"]
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

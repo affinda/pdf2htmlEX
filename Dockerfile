@@ -19,22 +19,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
     apt-get install -y \
-    sudo git
+    sudo git && \
+    mkdir -p /opt/pdf2htmlEX/buildScripts
 
-RUN mkdir -p /opt/pdf2htmlEX/buildScripts
 WORKDIR /opt/pdf2htmlEX/buildScripts
 COPY ["./buildScripts/versionEnvs", "./buildScripts/reportEnvs", "./buildScripts/getBuildToolsApt", "./buildScripts/getDevLibrariesApt", "./"]
 
 WORKDIR /opt/pdf2htmlEX
-RUN ./buildScripts/versionEnvs
-RUN ./buildScripts/reportEnvs
-
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    ./buildScripts/getBuildToolsApt
-
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+RUN ./buildScripts/versionEnvs && \
+    ./buildScripts/reportEnvs && \
+    ./buildScripts/getBuildToolsApt && \
     ./buildScripts/getDevLibrariesApt
 
 
@@ -54,9 +48,8 @@ RUN ./buildScripts/buildPoppler
 
 FROM builder-base as builder-fontforge
 ARG FONTFORGE_VERSION
-RUN FONTFORGE_SRC=$FONTFORGE_VERSION.tar.gz && \
-    wget https://github.com/fontforge/fontforge/archive/$FONTFORGE_SRC && \
-    tar xvf $FONTFORGE_SRC && \
+RUN wget https://github.com/fontforge/fontforge/archive/$FONTFORGE_VERSION.tar.gz && \
+    tar xvf $FONTFORGE_VERSION.tar.gz && \
     mv fontforge-$FONTFORGE_VERSION fontforge
 
 COPY ./buildScripts/buildFontforge ./buildScripts/buildFontforge
@@ -68,24 +61,22 @@ COPY --link --from=builder-poppler /opt/pdf2htmlEX/poppler-data /opt/pdf2htmlEX/
 COPY --link --from=builder-fontforge /opt/pdf2htmlEX/fontforge /opt/pdf2htmlEX/fontforge
 
 WORKDIR /opt/pdf2htmlEX
-COPY ./ ./
-RUN ./buildScripts/buildPdf2htmlEX
-
-RUN ./buildScripts/installPdf2htmlEX
-
-RUN ./buildScripts/reportEnvs
-
-#RUN ./buildScripts/createAppImage
-
-RUN ./buildScripts/createDebianPackage
-
+# Only copy in neccesary files to prevent cache misses
+COPY --link ./buildScripts ./buildScripts
+COPY --link ./patches ./patches
+COPY --link ./pdf2htmlEX ./pdf2htmlEX
+COPY --link ["ChangeLog", "README.md", "LICENSE", "LICENSE_GPLv3",  "./"]
+RUN ./buildScripts/buildPdf2htmlEX && \
+    ./buildScripts/installPdf2htmlEX && \
+    ./buildScripts/reportEnvs   && \
+    ./buildScripts/createDebianPackage
 
 FROM ubuntu:22.04 as runtime
 ARG DPKG_NAME
 ENV DPKG_NAME=$DPKG_NAME
 COPY --from=builder /opt/pdf2htmlEX/imageBuild/$DPKG_NAME /root/$DPKG_NAME
 
-#
+# Install pdf2htmlEX
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
   apt update && \
@@ -97,3 +88,49 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 WORKDIR /pdf
 
 ENTRYPOINT ["/usr/bin/pdf2htmlEX"]
+
+
+# First export requirements
+FROM affinda/poetry:3.12.2 as api-requirements
+WORKDIR /opt/pdf2htmlEX
+COPY ["api/poetry.lock", "api/pyproject.toml", "./"]
+RUN poetry export --without-hashes -f requirements.txt -o ./requirements.txt --without dev --no-interaction --no-ansi
+
+
+FROM affinda/python:3.12.2 as api
+# Affinda/python image based on Ubuntu 22.04 but with custom python version
+ARG DPKG_NAME
+ENV DPKG_NAME=$DPKG_NAME
+COPY --from=builder --link /opt/pdf2htmlEX/imageBuild/$DPKG_NAME /root/$DPKG_NAME
+
+USER root
+WORKDIR /opt/pdf2htmlEX
+
+
+# Install pdf2htmlEX
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  apt update && \
+  apt -y upgrade && \
+  apt -y --no-install-recommends install \
+    /root/$DPKG_NAME && \
+  mkdir -p /opt/pdf2htmlEX && \
+  chown -R affinda:affinda /opt/pdf2htmlEX
+
+
+# Copy in pyproject.toml too as it contains config for lots of things
+COPY --link --from=api-requirements ["/opt/pdf2htmlEX/requirements.txt", "/opt/pdf2htmlEX/pyproject.toml", "./"]
+
+RUN --mount=type=cache,target=/root/.cache \
+    uv pip install -v -r requirements.txt --link-mode copy
+
+
+COPY ["./api/pdf2html_api.py", "./api/init.sh", "./"]
+
+ARG SENTRY_RELEASE
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
+CMD ["/opt/pdf2html/init.sh"]
+
+# Use the affinda non root user
+USER affinda
+CMD ["/opt/pdf2html/init.sh"]
